@@ -3,7 +3,7 @@
  * striscia di stato con i giocatori e cosa fare, finestre per cronaca, chat e regole.
  */
 import { BOT_LEVEL_LABEL, seatName, type GameView } from '@maiolica/shared';
-import { ArrowLeft, BookOpen, Box, MessageCircle, ScrollText, ShoppingBag, Sparkles, Square, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, Box, ChevronDown, ChevronUp, MessageCircle, ScrollText, ShoppingBag, Sparkles, Square, X } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { GameSummary } from '../api';
 import { GuideContent } from '../guide/Guide';
@@ -56,6 +56,29 @@ function LogList({ game, view }: { game: GameSummary; view: GameView }) {
 
 type Sheet = 'log' | 'chat' | 'guide' | null;
 
+const COLLAPSE_KEY = 'maiolica-status-collapsed';
+
+/** Sul telefono il pannello di stato si può ridurre a una riga (scelta ricordata). */
+function useCollapsed() {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAPSE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggle = () =>
+    setCollapsed((v) => {
+      try {
+        localStorage.setItem(COLLAPSE_KEY, v ? '0' : '1');
+      } catch {
+        /* preferenza solo locale */
+      }
+      return !v;
+    });
+  return [collapsed, toggle] as const;
+}
+
 function useUnread(open: boolean) {
   const messages = useGame((s) => s.messages);
   const [seen, setSeen] = useState(messages.length);
@@ -86,6 +109,8 @@ export function Hud({
 }) {
   const [sheet, setSheet] = useState<Sheet>(null);
   const unread = useUnread(sheet === 'chat');
+  const [collapsedPref, toggleCollapsed] = useCollapsed();
+  const collapsed = narrow && collapsedPref;
   const quality = useGame((s) => s.quality);
   const setQuality = useGame((s) => s.setQuality);
   const titles: Record<Exclude<Sheet, null>, [string, string]> = {
@@ -141,7 +166,8 @@ export function Hud({
         </div>
       </header>
 
-      <section className={`hud-status glass ${c.mine ? 'mine' : ''} ${narrow ? 'mobile' : ''}`}>
+      <section className={`hud-status glass ${c.mine ? 'mine' : ''} ${narrow ? 'mobile' : ''} ${collapsed ? 'collapsed' : ''}`}>
+        {!collapsed && (
         <div className="players-strip">
           {game.players.map((p) => (
             <span
@@ -156,12 +182,23 @@ export function Hud({
             </span>
           ))}
         </div>
+        )}
         <div className="status-row">
           {c.plan && <Tile color={c.plan.color} size={22} />}
           <p className="status">{statusText(game, view, c)}</p>
           {c.plan && (
             <button className="icon-btn sm" onClick={c.cancel} aria-label="Annulla la scelta" title="Annulla (Esc)">
               <X size={14} />
+            </button>
+          )}
+          {narrow && (
+            <button
+              className="icon-btn sm"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? 'Allarga il pannello' : 'Riduci il pannello'}
+              title={collapsed ? 'Allarga' : 'Riduci'}
+            >
+              {collapsed ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
             </button>
           )}
         </div>
