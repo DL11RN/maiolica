@@ -1,0 +1,32 @@
+services:
+  maiolica:
+    build: .
+    image: maiolica:latest
+    container_name: maiolica
+    restart: unless-stopped
+    ports:
+      # MAIOLICA_BIND sceglie l'indirizzo su cui pubblicare la porta: 0.0.0.0 = tutte le interfacce,
+      # 127.0.0.1 = solo questo server (cloudflared/NPM sulla stessa macchina), oppure l'IP Tailscale.
+      - "${MAIOLICA_BIND:-0.0.0.0}:${MAIOLICA_PORT:-8081}:8080"
+    environment:
+      # Cookie di sessione "solo HTTPS": auto (consigliato) lo attiva solo per le richieste in HTTPS,
+      # anche dietro un proxy come Cloudflare; true/false lo forzano.
+      COOKIE_SECURE: "${COOKIE_SECURE:-auto}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      # Nomi utente sempre amministratori, separati da virgola (es. "mario,lucia").
+      # Se vuoto, il primo utente registrato diventa amministratore.
+      ADMIN_USERS: "${ADMIN_USERS:-}"
+      # Valore iniziale della registrazione libera; poi si cambia dalla pagina Utenti.
+      REGISTRATION_OPEN: "${REGISTRATION_OPEN:-true}"
+      # Numero massimo di profili (registrati o creati dagli admin); 0 = nessun limite.
+      MAX_USERS: "${MAX_USERS:-0}"
+      # Proxy fidati (NPM, cloudflared) per IP reale e protocollo: IP, CIDR o nomi separati da virgola.
+      # I nomi si risolvono all'avvio del container; il log mostra l'elenco effettivo ("Proxy fidati: …").
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-loopback,172.16.0.0/12}"
+      # Pausa (ms) prima di ogni mossa dei bot.
+      BOT_DELAY_MS: "${BOT_DELAY_MS:-900}"
+    volumes:
+      - maiolica-data:/data
+
+volumes:
+  maiolica-data:

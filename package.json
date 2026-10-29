@@ -1,0 +1,26 @@
+{
+  "name": "maiolica",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Maiolica: gioco di piastrelle per 2-4 giocatori, web e self-hosted",
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/client"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @maiolica/server & npm run dev -w @maiolica/client",
+    "build": "npm run build -w @maiolica/client && npm run build -w @maiolica/server",
+    "start": "npm run start -w @maiolica/server",
+    "test": "vitest run",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/server && tsc -p packages/client"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}
