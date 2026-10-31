@@ -11,10 +11,12 @@ import {
   legalTakes,
   standings,
   tilePoints,
+  tileScore,
   viewFor,
   wallColor,
   wallColumn,
   type Color,
+  type GameEvent,
   type GameState,
 } from '../src/index';
 
@@ -196,5 +198,123 @@ describe('vista e bot', () => {
       if (end.players[hard]!.score > end.players[1 - hard]!.score) wins++;
     }
     expect(wins).toBeGreaterThanOrEqual(6);
+  });
+});
+
+/** Eventi aggiunti da un'azione (il log tiene solo gli ultimi 120). */
+function newEvents(prev: GameEvent[], next: GameEvent[]): GameEvent[] {
+  const key = (l: GameEvent[]) => l.map((e) => JSON.stringify(e));
+  const a = key(prev);
+  const b = key(next);
+  for (let added = Math.max(0, b.length - a.length); added <= b.length; added++) {
+    const kept = b.length - added;
+    if (kept > a.length) continue;
+    if (b.slice(0, kept).join('\n') === a.slice(a.length - kept).join('\n')) return next.slice(kept);
+  }
+  return next;
+}
+
+describe('spiegazione dei punti', () => {
+  it('tileScore: file orizzontale e verticale, la fila di 1 non conta, il buco interrompe', () => {
+    expect(tileScore(wall([[2, 2]]), 2, 2)).toEqual({ h: 1, v: 1, points: 1 });
+    expect(tileScore(wall([[0, 0], [0, 1], [0, 2]]), 0, 2)).toEqual({ h: 3, v: 1, points: 3 });
+    expect(tileScore(wall([[0, 4], [1, 4], [2, 4]]), 1, 4)).toEqual({ h: 1, v: 3, points: 3 });
+    expect(tileScore(wall([[1, 1], [1, 2], [0, 3], [2, 3], [1, 3]]), 1, 3)).toEqual({ h: 3, v: 3, points: 6 });
+    // Esempio della guida: a sinistra c'è un buco.
+    expect(tileScore(wall([[3, 0], [3, 2], [3, 3], [4, 2]]), 3, 2)).toEqual({ h: 2, v: 2, points: 4 });
+  });
+
+  it('pavimento: caselle occupate (segnalino compreso), penalità piena e applicata', () => {
+    const s = createGame({ freeWall: false }, 2, rng());
+    s.factories = s.factories.map(() => []);
+    s.factories[0] = [2, 2, 1, 1];
+    s.players[1]!.score = 4;
+    const n = applyAction(s, 0, { type: 'take', source: 0, color: 2, target: 'floor' });
+    const m = applyAction(n, 1, { type: 'take', source: 'center', color: 1, target: 'floor' });
+    const floors = m.log.filter((e) => e.type === 'floor');
+    // Giocatore 0: 2 piastrelle, −2. Giocatore 1: segnalino + 2 = 3 caselle, −4, aveva 4 punti.
+    expect(floors).toContainEqual({ type: 'floor', round: 1, seat: 0, points: 0, count: 2, penalty: -2 });
+    expect(floors).toContainEqual({ type: 'floor', round: 1, seat: 1, points: -4, count: 3, penalty: -4 });
+    expect(m.players[1]!.score).toBe(0);
+  });
+
+  it('muro libero: la riga senza colonne possibili lo dice nella cronaca', () => {
+    const s = createGame({ freeWall: true }, 2, rng());
+    s.factories = s.factories.map(() => []);
+    s.factories[0] = [3, 4, 4, 4];
+    // Il colore 3 è già in tutte le colonne libere della riga 0: nessuna colonna possibile.
+    for (let r = 1; r < 5; r++) s.players[0]!.wall[r]![r - 1] = 3;
+    s.players[0]!.wall[0]![4] = 0;
+    const n = applyAction(s, 0, { type: 'take', source: 0, color: 3, target: 0 });
+    const m = applyAction(n, 1, { type: 'take', source: 'center', color: 4, target: 2 });
+    const o = applyAction(m, 1, { type: 'wall', col: 4 });
+    expect(o.log).toContainEqual({ type: 'blocked', round: 1, seat: 0, row: 0, color: 3, count: 1 });
+    expect(o.log).toContainEqual({ type: 'floor', round: 1, seat: 0, points: 0, count: 1, penalty: -1 });
+  });
+
+  it('bonus: dice quali righe, colonne e colori', () => {
+    const s = createGame({ freeWall: false }, 2, rng());
+    const p = s.players[0]!;
+    const cells: [number, number][] = [];
+    for (let c = 0; c < 4; c++) cells.push([0, c]);
+    for (let r = 1; r < 5; r++) cells.push([r, 0]);
+    for (let r = 0; r < 5; r++) cells.push([r, wallColumn(r, 2)]);
+    p.wall = wall(cells);
+    // Manca solo (0, 4): la riga 0 sta per completarsi.
+    s.factories = s.factories.map(() => []);
+    const color = wallColor(0, 4);
+    const other = ((color + 1) % 5) as Color;
+    s.factories[0] = [color, other, other, other];
+    const n = applyAction(s, 0, { type: 'take', source: 0, color, target: 0 });
+    const left = n.center[0]!;
+    const m = applyAction(n, 1, { type: 'take', source: 'center', color: left, target: 'floor' });
+    expect(m.phase).toBe('ended');
+    const bonus = m.log.filter((e) => e.type === 'bonus' && e.seat === 0);
+    expect(bonus).toContainEqual({ type: 'bonus', seat: 0, kind: 'rows', count: 1, points: 2, which: [0] });
+    expect(bonus).toContainEqual({ type: 'bonus', seat: 0, kind: 'columns', count: 1, points: 7, which: [0] });
+    expect(bonus).toContainEqual({ type: 'bonus', seat: 0, kind: 'colors', count: 1, points: 10, which: [2] });
+  });
+
+  it('sacchetto e scatola vuoti senza righe complete: la partita finisce invece di bloccarsi', () => {
+    const s = createGame({ freeWall: false }, 2, rng());
+    s.factories = s.factories.map(() => []);
+    s.factories[0] = [1, 1, 1, 1];
+    s.bag = [];
+    s.box = [];
+    const n = applyAction(s, 0, { type: 'take', source: 0, color: 1, target: 4 });
+    expect(n.phase).toBe('ended');
+    expect(n.current).toBeNull();
+  });
+
+  it('in partite intere ogni punto ha la sua spiegazione e i conti tornano', { timeout: 120_000 }, () => {
+    for (const freeWall of [false, true])
+      for (const n of [2, 3, 4]) {
+        let s = createGame({ freeWall }, n, rng(100 + n));
+        const r = rng(7 * n + (freeWall ? 1 : 0));
+        let moves = 0;
+        while (s.phase !== 'ended' && moves++ < 2000) {
+          const seat = s.current!.seat;
+          const next = applyAction(s, seat, chooseBotMove(s, seat, 'medium', r), r);
+          const delta = next.players.map((p, i) => p.score - s.players[i]!.score);
+          const explained = next.players.map(() => 0);
+          for (const e of newEvents(s.log, next.log)) {
+            if (e.type === 'tile') {
+              const { h, v } = e as Required<typeof e>;
+              expect(e.points).toBe(h === 1 && v === 1 ? 1 : (h > 1 ? h : 0) + (v > 1 ? v : 0));
+              explained[e.seat]! += e.points;
+            } else if (e.type === 'floor') {
+              expect(e.penalty).toBe(floorPenalty(e.count!));
+              expect(e.points).toBeGreaterThanOrEqual(e.penalty!);
+              explained[e.seat]! += e.points;
+            } else if (e.type === 'bonus') {
+              expect(e.which).toHaveLength(e.count);
+              explained[e.seat]! += e.points;
+            }
+          }
+          expect(explained).toEqual(delta);
+          s = next;
+        }
+        expect(s.phase).toBe('ended');
+      }
   });
 });

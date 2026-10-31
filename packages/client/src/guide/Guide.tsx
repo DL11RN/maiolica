@@ -161,6 +161,16 @@ export function GuideContent({ compact }: { compact?: boolean }) {
           settima, le piastrelle tornano nella scatola senza altra penalità. Si può sempre scegliere di mettere tutto sul
           pavimento, anche quando nessuna riga va bene. Il punteggio non scende mai sotto zero.
         </p>
+        <p>
+          Le penalità si sommano casella per casella, da sinistra: conta quante caselle sono occupate, non di che colore
+          sono. Anche il segnalino del primo giocatore occupa una casella e costa come una piastrella.
+        </p>
+        <Example>
+          <p>
+            Hai preso dal centro per primo (segnalino) e 3 piastrelle non ti stavano nella riga: 4 caselle occupate, −1 −1
+            −2 −2 = <b>−6</b>. Se avevi solo 4 punti, perdi 4 e resti a 0.
+          </p>
+        </Example>
       </section>
 
       <section id="g-muro">
@@ -169,15 +179,41 @@ export function GuideContent({ compact }: { compact?: boolean }) {
           A fine round, per ogni riga completa, la piastrella più a destra passa sul muro nella stessa riga, nella casella
           del suo colore; le altre tornano nella scatola. Le righe incomplete restano per il round dopo.
         </p>
-        <p>Ogni piastrella posata vale subito dei punti:</p>
+        <p>
+          Le righe complete passano sul muro una alla volta, dall'alto in basso, e ogni piastrella vale subito dei punti
+          secondo le piastrelle <b>già</b> sul muro, compresa quella appena posata dalla riga sopra:
+        </p>
         <ul>
-          <li>1 punto se non tocca nessun'altra piastrella;</li>
           <li>
-            altrimenti si contano le piastrelle unite in fila orizzontale (lei compresa) e quelle in fila verticale, e si
-            sommano.
+            si guarda la <b>fila orizzontale</b>: la piastrella e quelle attaccate a destra e a sinistra, senza buchi;
           </li>
+          <li>
+            poi la <b>fila verticale</b>: la piastrella e quelle attaccate sopra e sotto, senza buchi;
+          </li>
+          <li>
+            ogni fila lunga almeno 2 vale tante piastrelle quante ne contiene (lei compresa) e le due file si sommano;
+            una fila di 1 (nessuna vicina in quella direzione) non conta;
+          </li>
+          <li>se non tocca nessuna piastrella, né in orizzontale né in verticale, vale 1.</li>
         </ul>
-        <Example>
+        <Example title="Esempio: piastrella isolata">
+          <div className="guide-example-row">
+            <Wall filled={[[2, 2]]} mark={[2, 2]} />
+            <p>
+              Nessuna vicina: vale <b>1</b> punto.
+            </p>
+          </div>
+        </Example>
+        <Example title="Esempio: solo in orizzontale">
+          <div className="guide-example-row">
+            <Wall filled={[[0, 0], [0, 1], [0, 2]]} mark={[0, 2]} />
+            <p>
+              Due piastrelle attaccate a sinistra: fila orizzontale di 3. In verticale è da sola, quindi non conta: vale{' '}
+              <b>3</b> punti (non 3 + 1).
+            </p>
+          </div>
+        </Example>
+        <Example title="Esempio: in tutte e due le direzioni">
           <div className="guide-example-row">
             <Wall filled={[[1, 1], [1, 2], [0, 3], [2, 3], [1, 3]]} mark={[1, 3]} />
             <p>
@@ -186,6 +222,20 @@ export function GuideContent({ compact }: { compact?: boolean }) {
             </p>
           </div>
         </Example>
+        <Example title="Esempio: il buco interrompe la fila">
+          <div className="guide-example-row">
+            <Wall filled={[[3, 0], [3, 2], [3, 3], [4, 2]]} mark={[3, 2]} />
+            <p>
+              A sinistra c'è un buco: la piastrella più a sinistra non conta. Fila orizzontale di 2 (lei e quella a
+              destra) + fila verticale di 2 (quella sotto): vale 2 + 2 = <b>4</b> punti.
+            </p>
+          </div>
+        </Example>
+        <Tip>
+          Nella <b>cronaca</b> della partita, per ogni punteggio è scritto il calcolo: le file che hanno contato per ogni
+          piastrella, le caselle del pavimento con le penalità e, a fine partita, quali righe, colonne e colori hanno dato
+          il bonus.
+        </Tip>
       </section>
 
       <section id="g-fine">
@@ -202,6 +252,16 @@ export function GuideContent({ compact }: { compact?: boolean }) {
             <b>+10</b> per ogni colore con tutte e cinque le piastrelle sul muro.
           </li>
         </ul>
+        <p>
+          I bonus valgono per tutti i giocatori, non solo per chi ha chiuso la partita. Una riga orizzontale completa conta
+          sia per far finire la partita sia per il bonus.
+        </p>
+        <Example>
+          <p>
+            A fine partita hai completato le righe 1 e 3, la colonna 2 e tutti e cinque i blu: 2 × 2 + 7 + 10 ={' '}
+            <b>+21</b>.
+          </p>
+        </Example>
       </section>
 
       <section id="g-libero">

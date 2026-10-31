@@ -96,6 +96,12 @@ docker compose up -d --build   # produzione (porta 8081 sull'host); il Dockerfil
 - **Muro libero**: a fine round, in ordine di turno a partire dal nuovo primo giocatore, ogni riga
   completa (dall'alto) sceglie una colonna senza ripetere il colore nella colonna; se non ce n'è
   nessuna, le piastrelle della riga cadono sul pavimento.
+- Sacchetto e scatola vuoti a inizio round (nessuna piastrella da offrire): la partita finisce lì, con
+  i bonus (prima il round vuoto si ripeteva all'infinito).
+- **Ogni punteggio si spiega**: gli eventi del log portano il calcolo (`tile` con `h`/`v`, `floor` con
+  `count`/`penalty`, `bonus` con `which`, `blocked` per il muro libero) e la cronaca (`eventText` in
+  `client/src/game/play.ts`) lo scrive per esteso. I campi sono facoltativi (partite vecchie). Un test
+  gioca partite intere e controlla che la somma delle spiegazioni dia la variazione dei punteggi.
 
 ## Bot
 

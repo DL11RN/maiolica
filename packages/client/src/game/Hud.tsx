@@ -45,7 +45,7 @@ function LogList({ game, view }: { game: GameSummary; view: GameView }) {
   return (
     <ul className="log">
       {events.slice(0, 60).map((e, i) => (
-        <li key={i} className={e.type === 'tile' || e.type === 'bonus' ? 'score' : ''}>
+        <li key={i} className={e.type === 'tile' || e.type === 'bonus' || e.type === 'floor' ? 'score' : ''}>
           {'seat' in e && <i className="dot" style={{ background: colorOf(e.seat) }} />}
           <span>{eventText(e, game)}</span>
         </li>

@@ -32,9 +32,20 @@ export type PlayerState = {
 
 export type GameEvent =
   | { type: 'take'; round: number; seat: number; source: Source; color: Color; count: number; target: Target; first: boolean }
-  | { type: 'tile'; round: number; seat: number; row: number; col: number; color: Color; points: number }
-  | { type: 'floor'; round: number; seat: number; points: number }
-  | { type: 'bonus'; seat: number; kind: 'rows' | 'columns' | 'colors'; count: number; points: number }
+  /**
+   * Piastrella posata sul muro. `h` e `v`: lunghezza della fila orizzontale e verticale che la
+   * contengono (lei compresa); una fila di 1 non conta (facoltativi: assenti nelle partite vecchie).
+   */
+  | { type: 'tile'; round: number; seat: number; row: number; col: number; color: Color; points: number; h?: number; v?: number }
+  /**
+   * Penalità del pavimento. `count`: caselle occupate (segnalino compreso, al massimo 7); `penalty`:
+   * penalità piena; `points`: quella applicata (minore se il punteggio sarebbe sceso sotto zero).
+   */
+  | { type: 'floor'; round: number; seat: number; points: number; count?: number; penalty?: number }
+  /** Muro libero: una riga completa senza colonne possibili, le sue piastrelle cadono sul pavimento. */
+  | { type: 'blocked'; round: number; seat: number; row: number; color: Color; count: number }
+  /** Bonus di fine partita. `which`: righe, colonne (0-4) o colori che lo hanno dato. */
+  | { type: 'bonus'; seat: number; kind: 'rows' | 'columns' | 'colors'; count: number; points: number; which?: number[] }
   | { type: 'round'; round: number };
 
 export type Phase = 'offer' | 'wall' | 'ended';

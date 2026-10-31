@@ -164,26 +164,41 @@ export function legalColumns(state: Pick<GameState, 'players' | 'pending'>): num
 // ---------- punteggi ----------
 
 /** Punti per una piastrella appena posata in (riga, colonna): file orizzontale + verticale. */
-export function tilePoints(wall: (Color | null)[][], row: number, col: number): number {
+/**
+ * Come si calcolano i punti di una piastrella appena posata in (riga, colonna): `h` e `v` sono le
+ * file orizzontale e verticale che la contengono (lei compresa). Se è isolata vale 1; altrimenti
+ * vale la somma delle file lunghe almeno 2 (una fila di 1 non conta).
+ */
+export function tileScore(wall: (Color | null)[][], row: number, col: number) {
   let h = 1;
   for (let c = col - 1; c >= 0 && wall[row]![c] !== null; c--) h++;
   for (let c = col + 1; c < 5 && wall[row]![c] !== null; c++) h++;
   let v = 1;
   for (let r = row - 1; r >= 0 && wall[r]![col] !== null; r--) v++;
   for (let r = row + 1; r < 5 && wall[r]![col] !== null; r++) v++;
-  if (h === 1 && v === 1) return 1;
-  return (h > 1 ? h : 0) + (v > 1 ? v : 0);
+  const points = h === 1 && v === 1 ? 1 : (h > 1 ? h : 0) + (v > 1 ? v : 0);
+  return { h, v, points };
 }
+
+/** Punti per una piastrella appena posata in (riga, colonna): file orizzontale + verticale. */
+export const tilePoints = (wall: (Color | null)[][], row: number, col: number) => tileScore(wall, row, col).points;
 
 export const floorPenalty = (count: number) =>
   FLOOR_PENALTY.slice(0, Math.min(count, FLOOR_SIZE)).reduce((a, b) => a + b, 0);
 
+/** Bonus di fine partita, con le righe, le colonne (0-4) e i colori che lo danno. */
+export function finalBonusDetail(p: PlayerState) {
+  const rowList = [0, 1, 2, 3, 4].filter((r) => p.wall[r]!.every((c) => c !== null));
+  const columnList = [0, 1, 2, 3, 4].filter((c) => p.wall.every((r) => r[c] !== null));
+  const colorList = COLORS.filter((color) => p.wall.flat().filter((c) => c === color).length === 5);
+  return { rowList, columnList, colorList };
+}
+
 export function finalBonus(p: PlayerState) {
-  const rows = p.wall.filter((r) => r.every((c) => c !== null)).length;
-  let columns = 0;
-  for (let c = 0; c < 5; c++) if (p.wall.every((r) => r[c] !== null)) columns++;
-  let colors = 0;
-  for (const color of COLORS) if (p.wall.flat().filter((c) => c === color).length === 5) colors++;
+  const { rowList, columnList, colorList } = finalBonusDetail(p);
+  const rows = rowList.length;
+  const columns = columnList.length;
+  const colors = colorList.length;
   return { rows, columns, colors, points: rows * 2 + columns * 7 + colors * 10 };
 }
 
@@ -282,9 +297,9 @@ function placeOnWall(state: GameState, p: PlayerState, row: number, col: number)
   const line = p.lines[row]!;
   const color = line.color!;
   p.wall[row]![col] = color;
-  const points = tilePoints(p.wall, row, col);
+  const { h, v, points } = tileScore(p.wall, row, col);
   addPoints(p, 'wall', points);
-  pushLog(state, { type: 'tile', round: state.round, seat: p.seat, row, col, color, points });
+  pushLog(state, { type: 'tile', round: state.round, seat: p.seat, row, col, color, points, h, v });
   // Una piastrella resta sul muro, le altre della riga vanno nella scatola.
   for (let i = 1; i < line.count; i++) state.box.push(color);
   p.lines[row] = { color: null, count: 0 };
@@ -300,6 +315,7 @@ function advancePending(state: GameState, rng: () => number) {
     }
     const p = state.players[next.seat]!;
     const line = p.lines[next.row]!;
+    pushLog(state, { type: 'blocked', round: state.round, seat: p.seat, row: next.row, color: line.color!, count: line.count });
     dropToFloor(state, p, Array<Color>(line.count).fill(line.color!));
     p.lines[next.row] = { color: null, count: 0 };
     state.pending.shift();
@@ -322,10 +338,11 @@ function endRound(state: GameState, rng: () => number) {
   for (const p of state.players) {
     const penalty = floorPenalty(p.floor.length);
     if (penalty) {
-      // Il punteggio non scende sotto zero.
-      const applied = Math.max(penalty, -p.score);
+      // Il punteggio non scende sotto zero (`0 - score` e non `-score`, per non avere -0).
+      const applied = Math.max(penalty, 0 - p.score);
       addPoints(p, 'floor', applied);
-      pushLog(state, { type: 'floor', round: state.round, seat: p.seat, points: applied });
+      const count = Math.min(p.floor.length, FLOOR_SIZE);
+      pushLog(state, { type: 'floor', round: state.round, seat: p.seat, points: applied, count, penalty });
     }
     for (const it of p.floor) if (it !== 'first') state.box.push(it);
     p.floor = [];
@@ -333,17 +350,7 @@ function endRound(state: GameState, rng: () => number) {
   state.pending = [];
   const over = state.players.some((p) => p.wall.some((r) => r.every((c) => c !== null)));
   if (over) {
-    for (const p of state.players) {
-      const b = finalBonus(p);
-      addPoints(p, 'rows', b.rows * 2);
-      addPoints(p, 'columns', b.columns * 7);
-      addPoints(p, 'colors', b.colors * 10);
-      if (b.rows) pushLog(state, { type: 'bonus', seat: p.seat, kind: 'rows', count: b.rows, points: b.rows * 2 });
-      if (b.columns) pushLog(state, { type: 'bonus', seat: p.seat, kind: 'columns', count: b.columns, points: b.columns * 7 });
-      if (b.colors) pushLog(state, { type: 'bonus', seat: p.seat, kind: 'colors', count: b.colors, points: b.colors * 10 });
-    }
-    state.phase = 'ended';
-    state.current = null;
+    endGame(state);
     return;
   }
   state.round++;
@@ -352,8 +359,26 @@ function endRound(state: GameState, rng: () => number) {
   fillFactories(state, rng);
   state.current = { seat: state.nextFirst };
   pushLog(state, { type: 'round', round: state.round });
-  // Se il sacchetto e la scatola sono vuoti le fornaci restano vuote: il round finisce subito.
-  if (state.factories.every((f) => !f.length) && !state.center.length) startWallTiling(state, rng);
+  // Sacchetto e scatola vuoti (tutte le piastrelle sui muri o nelle righe incomplete): nessuno può
+  // più giocare, la partita finisce qui (prima si ripeteva il round vuoto all'infinito).
+  if (state.factories.every((f) => !f.length) && !state.center.length) endGame(state);
+}
+
+/** Bonus finali e chiusura della partita. */
+function endGame(state: GameState) {
+  for (const p of state.players) {
+    const { rowList, columnList, colorList } = finalBonusDetail(p);
+    const add = (kind: 'rows' | 'columns' | 'colors', which: number[], each: number) => {
+      if (!which.length) return;
+      addPoints(p, kind, which.length * each);
+      pushLog(state, { type: 'bonus', seat: p.seat, kind, count: which.length, points: which.length * each, which });
+    };
+    add('rows', rowList, 2);
+    add('columns', columnList, 7);
+    add('colors', colorList, 10);
+  }
+  state.phase = 'ended';
+  state.current = null;
 }
 
 /** Applica un'azione e restituisce il nuovo stato (quello ricevuto non viene modificato). */
