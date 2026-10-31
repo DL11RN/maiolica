@@ -251,18 +251,24 @@ function applyTake(state: GameState, seat: number, a: TakeAction, rng: () => num
     state.factories[source] = [];
   }
   const overflow: FloorItem[] = first ? ['first'] : [];
+  let lineFrom = 0;
+  let toLine = 0;
   if (target === 'floor') overflow.push(...taken);
   else {
     if (!Number.isInteger(target) || target < 0 || target > 4) throw new GameError('Riga non valida.');
     if (!canUseLine(p, target, color)) throw new GameError('In quella riga non si può mettere questo colore.');
     const line = p.lines[target]!;
     const room = target + 1 - line.count;
+    lineFrom = line.count;
+    toLine = Math.min(room, taken.length);
     line.color = color;
-    line.count += Math.min(room, taken.length);
+    line.count += toLine;
     overflow.push(...taken.slice(room));
   }
+  const floorFrom = p.floor.length;
   dropToFloor(state, p, overflow);
-  pushLog(state, { type: 'take', round: state.round, seat, source, color, count: taken.length, target, first });
+  const toFloor = p.floor.length - floorFrom;
+  pushLog(state, { type: 'take', round: state.round, seat, source, color, count: taken.length, target, first, lineFrom, toLine, floorFrom, toFloor });
 
   const empty = state.factories.every((f) => !f.length) && !state.center.length;
   if (!empty) {

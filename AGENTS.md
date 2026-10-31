@@ -102,6 +102,9 @@ docker compose up -d --build   # produzione (porta 8081 sull'host); il Dockerfil
   `count`/`penalty`, `bonus` con `which`, `blocked` per il muro libero) e la cronaca (`eventText` in
   `client/src/game/play.ts`) lo scrive per esteso. I campi sono facoltativi (partite vecchie). Un test
   gioca partite intere e controlla che la somma delle spiegazioni dia la variazione dei punteggi.
+- **Ultima mossa evidenziata** sulle plance degli altri (2D e 3D, `client/src/game/lastMove.ts`): le
+  caselle dell'ultima presa (`take` con `lineFrom`/`toLine`/`floorFrom`/`toFloor`) o, dopo la fine del
+  round, le piastrelle passate sul muro (eventi `tile`).
 
 ## Bot
 

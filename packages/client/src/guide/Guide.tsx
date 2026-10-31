@@ -281,6 +281,10 @@ export function GuideContent({ compact }: { compact?: boolean }) {
           <li>Poi tocca una riga illuminata della tua plancia, o il pavimento.</li>
           <li>Sul PC: tasti 1-5 per la riga, 0 o P per il pavimento, Esc per annullare.</li>
           <li>Sul telefono tocca la plancia piccola di un avversario per vederla in grande.</li>
+          <li>
+            Sulle plance degli avversari l'ultima mossa è illuminata del loro colore: le piastrelle appena prese (nella riga
+            e sul pavimento) o, a fine round, quelle appena passate sul muro.
+          </li>
           <li>Il pulsante con il cubo passa dal tavolo 3D a quello 2D; nel 3D trascina per ruotare la vista.</li>
         </ul>
       </section>

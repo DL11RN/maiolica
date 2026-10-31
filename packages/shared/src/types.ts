@@ -31,7 +31,25 @@ export type PlayerState = {
 };
 
 export type GameEvent =
-  | { type: 'take'; round: number; seat: number; source: Source; color: Color; count: number; target: Target; first: boolean }
+  /**
+   * Presa. Per evidenziare la mossa sulla plancia (facoltativi: assenti nelle partite vecchie):
+   * `lineFrom`/`toLine` = piastrelle già nella riga e quelle aggiunte; `floorFrom`/`toFloor` = caselle
+   * del pavimento già occupate e quelle riempite ora (segnalino compreso; quelle in più vanno nella scatola).
+   */
+  | {
+      type: 'take';
+      round: number;
+      seat: number;
+      source: Source;
+      color: Color;
+      count: number;
+      target: Target;
+      first: boolean;
+      lineFrom?: number;
+      toLine?: number;
+      floorFrom?: number;
+      toFloor?: number;
+    }
   /**
    * Piastrella posata sul muro. `h` e `v`: lunghezza della fila orizzontale e verticale che la
    * contengono (lei compresa); una fila di 1 non conta (facoltativi: assenti nelle partite vecchie).

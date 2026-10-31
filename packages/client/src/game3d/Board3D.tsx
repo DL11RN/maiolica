@@ -12,6 +12,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import type { Texture } from 'three';
 import type { GameSummary } from '../api';
 import { colorOf } from '../game/colors';
+import { lastMove } from '../game/lastMove';
 import type { PlayControls } from '../game/play';
 import { TILE_BASE } from '../game/TileFace';
 import { useGame } from '../store';
@@ -58,6 +59,7 @@ const Tile3D = memo(function Tile3D({
   rotation = 0,
   lift = 0,
   glow,
+  mark,
   onPick,
 }: {
   color?: Color;
@@ -65,8 +67,11 @@ const Tile3D = memo(function Tile3D({
   rotation?: number;
   lift?: number;
   glow?: boolean;
+  /** Ultima mossa di un altro giocatore: si illumina del suo colore. */
+  mark?: string;
   onPick?: () => void;
 }) {
+  const emissive = glow ? AMBER : (mark ?? '#000000');
   const tex = useTex(() => (color === undefined ? firstTexture() : tileTexture(color)), [color]);
   const base = color === undefined ? '#efe6d2' : TILE_BASE[color];
   const interactive = onPick
@@ -78,8 +83,8 @@ const Tile3D = memo(function Tile3D({
         <boxGeometry args={[T, H, T]} />
         <meshStandardMaterial
           color={base}
-          emissive={glow ? AMBER : '#000000'}
-          emissiveIntensity={glow ? 0.45 : 0}
+          emissive={emissive}
+          emissiveIntensity={glow ? 0.45 : mark ? 0.55 : 0}
           roughness={0.35}
           metalness={0.05}
         />
@@ -87,7 +92,7 @@ const Tile3D = memo(function Tile3D({
       <mesh position={[0, H / 2 + 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[T, T]} />
         {tex ? (
-          <meshStandardMaterial key="map" map={tex} roughness={0.22} metalness={0.05} emissive={glow ? AMBER : '#000000'} emissiveIntensity={glow ? 0.25 : 0} />
+          <meshStandardMaterial key="map" map={tex} roughness={0.22} metalness={0.05} emissive={emissive} emissiveIntensity={glow ? 0.25 : mark ? 0.3 : 0} />
         ) : (
           <meshStandardMaterial key="plain" color={base} roughness={0.3} />
         )}
@@ -164,6 +169,8 @@ function PlayerBoard3D({
   const y = BOARD_H;
   const active = view.current?.seat === player.seat;
   const floorTarget = mine && !!c.plan && c.offer;
+  const last = mine ? null : lastMove(view, player.seat);
+  const mark = (on: boolean | undefined) => (on ? colorOf(player.seat) : undefined);
   return (
     <group position={position} rotation={[0, rotation, 0]}>
       <mesh position={[0, BOARD_H / 2, 0]} castShadow receiveShadow>
@@ -192,7 +199,7 @@ function PlayerBoard3D({
             {Array.from({ length: row + 1 }, (_, k) => {
               const [x, z] = lineSlot(row, k);
               return k < line.count && line.color !== null ? (
-                <Tile3D key={k} color={line.color} position={[x, y, z]} onPick={target ? () => void c.place(row) : undefined} />
+                <Tile3D key={k} color={line.color} position={[x, y, z]} mark={mark(last?.line.has(`${row}-${k}`))} onPick={target ? () => void c.place(row) : undefined} />
               ) : (
                 <Slot key={k} position={[x, y + 0.002, z]} target={target} onPick={() => void c.place(row)} />
               );
@@ -206,7 +213,7 @@ function PlayerBoard3D({
         cells.map((cell, col) => {
           const [x, z] = wallCell(row, col);
           const pick = mine && c.wallTurn && c.pendingRow === row && c.columns.includes(col);
-          if (cell !== null) return <Tile3D key={`w${row}${col}`} color={cell} position={[x, y, z]} />;
+          if (cell !== null) return <Tile3D key={`w${row}${col}`} color={cell} position={[x, y, z]} mark={mark(last?.wall.has(`${row}-${col}`))} />;
           return (
             <group key={`w${row}${col}`}>
               <Slot position={[x, y + 0.002, z]} target={pick} onPick={() => void c.wall(col)} />
@@ -223,7 +230,7 @@ function PlayerBoard3D({
         const it = player.floor[k];
         if (it === undefined)
           return <Slot key={`f${k}`} position={[x, y + 0.002, z]} target={floorTarget} onPick={() => void c.place('floor')} />;
-        return <Tile3D key={`f${k}`} color={it === 'first' ? undefined : it} position={[x, y, z]} />;
+        return <Tile3D key={`f${k}`} color={it === 'first' ? undefined : it} position={[x, y, z]} mark={mark(last?.floor.has(k))} />;
       })}
     </group>
   );

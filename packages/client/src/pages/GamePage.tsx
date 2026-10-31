@@ -102,6 +102,7 @@ function Ended({ game, view, onLeave }: { game: GameSummary; view: GameView; onL
   const offer = useGame((s) => s.rematchOffer);
   const showToast = useGame((s) => s.showToast);
   const [open, setOpen] = useState(true);
+  const narrow = useNarrow();
   const { winners } = standings(view);
   const order = [...view.players].sort((a, b) => b.score - a.score);
   const won = view.you !== null && winners.includes(view.you);
@@ -138,40 +139,69 @@ function Ended({ game, view, onLeave }: { game: GameSummary; view: GameView; onL
         }
       >
         {offer && <p className="offer">{offer.by} propone la rivincita.</p>}
-        <div className="results-wrap">
-          <table className="results">
-            <thead>
-              <tr>
-                <th />
-                <th>Giocatore</th>
-                {KINDS.map((k) => (
-                  <th key={k}>{KIND_LABEL[k]}</th>
-                ))}
-                <th>Totale</th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.map((p, i) => {
-                const s = game.players[p.seat]!;
-                return (
-                  <tr key={p.seat} className={winners.includes(p.seat) ? 'winner' : ''}>
-                    <td className="mono">{i + 1}</td>
-                    <td>
-                      <span className="swatch" style={{ background: colorOf(p.seat) }} /> {seatName(s)}
+        {narrow ? (
+          // Telefono: una scheda per giocatore, si legge tutta senza ruotare lo schermo.
+          <ol className="results-list">
+            {order.map((p, i) => {
+              const s = game.players[p.seat]!;
+              return (
+                <li key={p.seat} className={winners.includes(p.seat) ? 'winner' : ''}>
+                  <div className="who">
+                    <span className="mono">{i + 1}</span>
+                    <span className="swatch" style={{ background: colorOf(p.seat) }} />
+                    <span className="name">
+                      {seatName(s)}
                       {s.bot && <small className="faint"> · {BOT_LEVEL_LABEL[s.bot].toLowerCase()}</small>}
-                    </td>
+                    </span>
+                    <span className="mono total">{p.score}</span>
+                  </div>
+                  <div className="parts">
                     {KINDS.map((k) => (
-                      <td key={k} className="mono">
-                        {p.breakdown[k]}
-                      </td>
+                      <span key={k}>
+                        {KIND_LABEL[k]} <b className="mono">{p.breakdown[k]}</b>
+                      </span>
                     ))}
-                    <td className="mono total">{p.score}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <div className="results-wrap">
+            <table className="results">
+              <thead>
+                <tr>
+                  <th />
+                  <th>Giocatore</th>
+                  {KINDS.map((k) => (
+                    <th key={k}>{KIND_LABEL[k]}</th>
+                  ))}
+                  <th>Totale</th>
+                </tr>
+              </thead>
+              <tbody>
+                {order.map((p, i) => {
+                  const s = game.players[p.seat]!;
+                  return (
+                    <tr key={p.seat} className={winners.includes(p.seat) ? 'winner' : ''}>
+                      <td className="mono">{i + 1}</td>
+                      <td>
+                        <span className="swatch" style={{ background: colorOf(p.seat) }} /> {seatName(s)}
+                        {s.bot && <small className="faint"> · {BOT_LEVEL_LABEL[s.bot].toLowerCase()}</small>}
+                      </td>
+                      {KINDS.map((k) => (
+                        <td key={k} className="mono">
+                          {p.breakdown[k]}
+                        </td>
+                      ))}
+                      <td className="mono total">{p.score}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Modal>
     </>
   );

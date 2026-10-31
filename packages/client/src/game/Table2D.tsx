@@ -7,6 +7,7 @@ import { useState } from 'react';
 import type { GameSummary } from '../api';
 import { colorOf } from './colors';
 import type { PlayControls } from './play';
+import { lastMove } from './lastMove';
 import { Tile } from './TileFace';
 
 function Factory({ index, tiles, c }: { index: number; tiles: Color[]; c: PlayControls }) {
@@ -77,6 +78,8 @@ export function PlayerBoard({
   const size = compact ? 18 : 34;
   const free = view.options.freeWall;
   const active = view.current?.seat === player.seat;
+  // L'ultima mossa si evidenzia sulle plance degli altri.
+  const last = mine ? null : lastMove(view, player.seat);
   return (
     <section
       className={`pboard ${mine ? 'mine' : ''} ${active ? 'active' : ''} ${compact ? 'compact' : ''}`}
@@ -100,7 +103,7 @@ export function PlayerBoard({
                 aria-label={`Riga ${row + 1}`}
               >
                 {Array.from({ length: row + 1 }, (_, k) => (
-                  <span key={k} className="slot">
+                  <span key={k} className={`slot ${last?.line.has(`${row}-${k}`) ? 'last' : ''}`}>
                     {k < line.count && line.color !== null ? <Tile color={line.color} size={size} /> : null}
                   </span>
                 ))}
@@ -115,7 +118,7 @@ export function PlayerBoard({
               return (
                 <button
                   key={`${row}-${col}`}
-                  className={`wall-cell ${pick ? 'target' : ''}`}
+                  className={`wall-cell ${pick ? 'target' : ''} ${last?.wall.has(`${row}-${col}`) ? 'last' : ''}`}
                   disabled={!pick}
                   onClick={() => void c.wall(col)}
                   aria-label={`Muro riga ${row + 1} colonna ${col + 1}`}
@@ -140,7 +143,7 @@ export function PlayerBoard({
         {FLOOR_PENALTY.map((pen, i) => {
           const it = player.floor[i];
           return (
-            <span key={i} className="slot">
+            <span key={i} className={`slot ${last?.floor.has(i) ? 'last' : ''}`}>
               {!compact && <small>{pen}</small>}
               {it === 'first' ? <Tile first size={size} /> : it !== undefined ? <Tile color={it} size={size} /> : null}
             </span>

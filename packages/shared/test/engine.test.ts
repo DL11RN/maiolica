@@ -275,6 +275,21 @@ describe('spiegazione dei punti', () => {
     expect(bonus).toContainEqual({ type: 'bonus', seat: 0, kind: 'colors', count: 1, points: 10, which: [2] });
   });
 
+  it('presa: dice quante piastrelle vanno nella riga e quali caselle del pavimento occupa', () => {
+    const s = createGame({ freeWall: false }, 2, rng());
+    s.factories = s.factories.map(() => []);
+    s.factories[0] = [2, 2, 2, 1];
+    s.factories[1] = [3, 3, 4, 4];
+    s.players[0]!.lines[1] = { color: 2, count: 1 };
+    s.players[0]!.floor = [0];
+    const n = applyAction(s, 0, { type: 'take', source: 0, color: 2, target: 1 });
+    // 3 rossi nella riga 2 che ne aveva già 1: ne entra 1, 2 cadono sul pavimento dopo la casella occupata.
+    expect(n.log.at(-1)).toMatchObject({ type: 'take', lineFrom: 1, toLine: 1, floorFrom: 1, toFloor: 2 });
+    const m = applyAction(n, 1, { type: 'take', source: 'center', color: 1, target: 'floor' });
+    // Dal centro: segnalino + 1 piastrella, tutto sul pavimento.
+    expect(m.log.at(-1)).toMatchObject({ type: 'take', lineFrom: 0, toLine: 0, floorFrom: 0, toFloor: 2, first: true });
+  });
+
   it('sacchetto e scatola vuoti senza righe complete: la partita finisce invece di bloccarsi', () => {
     const s = createGame({ freeWall: false }, 2, rng());
     s.factories = s.factories.map(() => []);

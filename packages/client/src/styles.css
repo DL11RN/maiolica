@@ -57,6 +57,11 @@
   scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
 }
 
+html {
+  /* Niente ingrandimento automatico del testo quando il telefono ruota. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 html,
 body,
 #root {
@@ -870,6 +875,9 @@ input[type='range'] {
   inset: 0;
   z-index: 60;
   display: grid;
+  /* La colonna non si allarga oltre lo schermo per far posto al contenuto (tabelle larghe). */
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
   place-items: center;
   padding: 16px;
   background: radial-gradient(ellipse at center, rgba(14, 8, 2, 0.35), rgba(14, 8, 2, 0.62));
@@ -2073,7 +2081,10 @@ input[type='range'] {
 .wall {
   display: grid;
   grid-template-columns: repeat(5, var(--ts));
-  gap: 3px;
+  /* Stesso passo verticale delle righe di preparazione (gap 3px + 2px di padding sopra e sotto
+     ogni riga), così ogni riga del muro sta alla stessa altezza della sua riga. */
+  row-gap: 7px;
+  column-gap: 3px;
   padding: 2px;
 }
 .wall-cell {
@@ -2128,10 +2139,81 @@ input[type='range'] {
 .game-page.narrow .factories {
   gap: 8px;
 }
-@media (max-width: 380px) {
-  .game-page.narrow .pboard:not(.compact) {
-    --ts: 28px !important;
+/* Telefono: la plancia (≈ 10,35 caselle di larghezza + bordi) sta sempre nella larghezza dello
+   schermo, così il browser non deve rimpicciolire la pagina (e dopo una rotazione non la ritrova
+   ingrandita, da scorrere). */
+.game-page.narrow .pboard:not(.compact) {
+  --ts: clamp(22px, calc((100vw - 76px) / 10.35), 34px) !important;
+}
+/* La piastrella segue sempre la casella (l'attributo `size` è solo il valore di partenza). */
+.pboard .slot .tile-svg,
+.pboard .wall-cell .tile-svg {
+  width: var(--ts);
+  height: var(--ts);
+}
+
+/* Ultima mossa degli altri giocatori: caselle bordate e illuminate del loro colore. */
+.slot.last,
+.wall-cell.last {
+  box-shadow:
+    0 0 0 2px var(--pc),
+    0 0 12px 1px var(--pc);
+  animation: last-move 1.4s ease-out 2;
+}
+@keyframes last-move {
+  0% {
+    box-shadow:
+      0 0 0 2px var(--pc),
+      0 0 22px 6px var(--pc);
   }
+}
+
+/* Risultati sul telefono: una scheda per giocatore invece della tabella larga. */
+.results-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.results-list li {
+  padding: 8px 10px;
+  border-radius: var(--r-s);
+  background: rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.results-list li.winner {
+  color: #ffe2b6;
+  background: rgba(255, 196, 110, 0.1);
+}
+.results-list .who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.results-list .who .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.results-list .total {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.results-list .parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: var(--ink-3);
+}
+.results-list .parts b {
+  color: var(--ink-2);
+  font-weight: 500;
 }
 
 /* ---------- tavolo 3D ---------- */
